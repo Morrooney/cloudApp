@@ -1,0 +1,53 @@
+version: "3.8"
+services:
+
+  postgresqldb:
+    container_name: db
+    hostname: db
+    image: postgres
+    restart: on-failure
+    env_file: ./.env
+    environment:
+      POSTGRES_DB: $DB_DATABASE
+      POSTGRES_USER: $DB_USER
+      POSTGRES_PASSWORD: $DB_ROOT_PASSWORD
+    ports:
+      - $DB_LOCAL_PORT:$DB_DOCKER_PORT
+    volumes:
+      - ./imports/db/backenddb.sql:/docker-entrypoint-initdb.d/backenddb.sql
+
+  backend:
+    container_name: springbootapp
+    hostname: springbootapp
+    depends_on:
+      - postgresqldb
+    build: ./
+    restart: on-failure
+    env_file: ./.env
+    ports:
+      - $SPRING_LOCAL_PORT:$SPRING_DOCKER_PORT
+    stdin_open: true
+    tty: true
+
+  frontend:
+    depends_on:
+      - postgresqldb
+      - backend
+    container_name: flutter
+    image: flutter
+    restart: always
+    ports:
+      - 4040:4040
+
+
+  nginx:
+    image: nginx
+    depends_on:
+      - postgresqldb
+      - backend
+      - frontend
+    ports:
+      - "80:80"
+    volumes:
+      - ./imports/nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+
